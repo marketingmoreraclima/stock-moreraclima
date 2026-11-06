@@ -124,7 +124,7 @@ td.big{font-weight:700;color:var(--accent)}
 
 /* Configuración */
 .olist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.orow{display:grid;grid-template-columns:40px 56px 44px 1fr auto;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
+.orow{display:grid;grid-template-columns:40px 56px 44px 1fr 74px auto;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
 .orow.dragging{box-shadow:0 8px 24px rgba(0,0,0,.25);border-color:var(--focus);position:relative;z-index:2}
 .handle{width:40px;height:44px;border:0;background:none;cursor:grab;touch-action:none;color:var(--muted);display:grid;place-items:center}
 .pos{width:56px;border:1.5px solid var(--line);border-radius:6px;text-align:center;padding:8px 2px;font-variant-numeric:tabular-nums;background:var(--surface)}
@@ -134,7 +134,12 @@ td.big{font-weight:700;color:var(--accent)}
 .oname small{display:block;color:var(--muted);font-size:12px}
 .arrows{display:flex;gap:4px}
 .arrows button{width:40px;height:40px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface-2);cursor:pointer;font-size:16px}
-@media (max-width:420px){.orow{grid-template-columns:34px 48px 1fr auto}.othumb{display:none}.pos{width:48px}.arrows button{width:36px}}
+@media (max-width:520px){.orow{grid-template-columns:34px 46px 1fr 60px;row-gap:6px}.othumb{display:none}.pos{width:46px}.arrows{grid-column:1/-1;justify-content:flex-end}.arrows button{width:44px}}
+.omin{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.omin input{width:100%;border:1.5px solid var(--line);border-radius:6px;text-align:center;padding:8px 2px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--surface);color:var(--fg)}
+.orow.changed{border-color:var(--accent);background:var(--accent-soft)}
+.orow.changed .omin input{border-color:var(--accent)}
+.mchg{color:var(--ok)!important;margin-top:2px}
 .savebar .wrap{flex-direction:column;align-items:stretch;gap:8px}
 .hidden-on-small{display:inline}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -214,8 +219,8 @@ td.big{font-weight:700;color:var(--accent)}
   <section class="view stack" id="v-config" hidden>
     <div class="panel stack">
       <div>
-        <h2 class="prov-h" style="margin:0">Orden de las fichas</h2>
-        <p class="small muted" style="margin:4px 0 0">Arrastra con el asa, usa las flechas o escribe la posición. El orden se aplica a todos cuando lo guardas.</p>
+        <h2 class="prov-h" style="margin:0">Orden y mínimos de las fichas</h2>
+        <p class="small muted" style="margin:4px 0 0">Arrastra con el asa, usa las flechas o escribe la posición. Cambia el mínimo en la casilla «Mín.» (déjala vacía para «sin mínimo»). Los cambios se aplican a todos cuando los guardas, indicando quién los hizo.</p>
       </div>
       <div class="notice small" id="order-meta"></div>
       <div class="row">
@@ -255,7 +260,7 @@ td.big{font-weight:700;color:var(--accent)}
     <div class="row">
       <span class="small muted">Guarda:</span>
       <div class="who" id="who-save"></div>
-      <button class="btn primary" id="save-order" style="margin-left:auto">Guardar orden</button>
+      <button class="btn primary" id="save-order" style="margin-left:auto">Guardar cambios</button>
     </div>
     <div class="small muted" id="save-msg"></div>
   </div>

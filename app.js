@@ -11,6 +11,8 @@ const S = {
   clave: null,
   order: PDF_ORDER.slice(), orderMeta: null,
   draft: null, draftBy: null,
+  mins: {},        // id -> {min, by, at, prev} cambios guardados en el servidor
+  draftMins: {},   // id -> número|null pendientes de guardar
   conteo: { encargado: null, startedAt: null },
   counts: {}, pending: {},
   hist: [], rec: null,
@@ -28,11 +30,15 @@ function normalizeOrder(o) {
   PDF_ORDER.forEach(id => { if (!seen.has(id)) out.push(id); });
   return out;
 }
+function minOf(id) {
+  const m = S.mins[id];
+  return m && Object.prototype.hasOwnProperty.call(m, "min") ? m.min : BY[id].min;
+}
 function status(id) {
-  const it = BY[id], c = S.counts[id];
+  const c = S.counts[id], min = minOf(id);
   if (c === null || c === undefined || c === "") return { k: "pend", txt: "Sin contar", pedir: 0 };
-  if (it.min == null) return { k: "ok", txt: "Sin mínimo", pedir: 0 };
-  const p = Math.max(0, it.min - c);
+  if (min == null) return { k: "ok", txt: "Sin mínimo", pedir: 0 };
+  const p = Math.max(0, min - c);
   return p > 0 ? { k: "pedir", txt: "Pedir " + p, pedir: p } : { k: "ok", txt: "OK", pedir: 0 };
 }
 function setSync(t) { $("#sync").textContent = t; }
@@ -88,7 +94,7 @@ function renderWho() {
   $("#started").textContent = S.conteo.startedAt ? "Empezado el " + fmtDate(S.conteo.startedAt) : "";
 }
 function cardHTML(id) {
-  const it = BY[id], st = status(id), c = S.counts[id];
+  const it = BY[id], st = status(id), c = S.counts[id], min = minOf(id);
   return `<article class="card st-${st.k}" data-id="${id}">
     <div class="thumb"><img src="${it.img}" alt="" loading="lazy"></div>
     <div class="info">
@@ -97,13 +103,13 @@ function cardHTML(id) {
       ${it.nota ? `<div class="nota">${esc(it.nota)}</div>` : ""}
     </div>
     <div class="counter">
-      <div class="minbox">Mín. <b>${it.min ?? "—"}</b></div>
+      <div class="minbox">Mín. <b>${min ?? "—"}</b></div>
       <div class="stepper">
         <button data-act="dec" aria-label="Restar uno">−</button>
         <input type="number" inputmode="numeric" min="0" step="1" id="c-${id}" aria-label="Stock contado de ${esc(it.material)}" value="${c ?? ""}" placeholder="–">
         <button data-act="inc" aria-label="Sumar uno">+</button>
       </div>
-      ${it.min != null ? `<button class="enough" data-act="enough">✓ Hay de sobra</button>` : ""}
+      ${min != null ? `<button class="enough" data-act="enough">✓ Hay de sobra</button>` : ""}
       <span class="pill">${st.txt}</span>
     </div>
   </article>`;
@@ -173,6 +179,7 @@ let pollTimer = null;
 function applyEstado(j) {
   if (j.orden && j.orden.order) { S.order = normalizeOrder(j.orden.order); S.orderMeta = j.orden; }
   else { S.order = PDF_ORDER.slice(); S.orderMeta = null; }
+  S.mins = j.minimos || {};
   const c = j.conteo || {};
   S.counts = { ...(c.counts || {}), ...S.pending };
   S.conteo = { encargado: c.encargado || null, startedAt: c.startedAt || null };
@@ -205,7 +212,7 @@ $("#cards").addEventListener("click", e => {
   const id = b.closest(".card").dataset.id, c = S.counts[id];
   if (b.dataset.act === "inc") setCount(id, (c ?? 0) + 1);
   if (b.dataset.act === "dec") setCount(id, Math.max(0, (c ?? 0) - 1));
-  if (b.dataset.act === "enough") setCount(id, BY[id].min);
+  if (b.dataset.act === "enough") setCount(id, minOf(id));
 });
 $("#cards").addEventListener("input", e => {
   if (!e.target.matches("input")) return;
@@ -218,7 +225,7 @@ $("#cards").addEventListener("focusin", e => { if (e.target.matches("input")) e.
 function buildLines() {
   const lines = S.order.map(id => {
     const it = BY[id], st = status(id), c = S.counts[id];
-    return { id, proveedor: it.proveedor, codigo: it.codigo, material: it.material, min: it.min, stock: c ?? null, pedir: st.pedir, nota: it.nota, estado: st.k };
+    return { id, proveedor: it.proveedor, codigo: it.codigo, material: it.material, min: minOf(id), stock: c ?? null, pedir: st.pedir, nota: it.nota, estado: st.k };
   });
   return { pedir: lines.filter(l => l.estado === "pedir"), sinContar: lines.filter(l => l.estado === "pend"), todas: lines };
 }
@@ -339,17 +346,24 @@ function renderOrderMeta() {
   $("#order-meta").innerHTML = m && m.savedBy ? `Orden guardado por <b>${esc(m.savedBy)}</b> el ${fmtDate(m.savedAt)}.` : "Se usa el orden original del PDF (todavía nadie ha guardado otro).";
 }
 function draft() { if (!S.draft) S.draft = S.order.slice(); return S.draft; }
-function isDirty() { return S.draft && S.draft.join() !== S.order.join(); }
+function orderDirty() { return !!S.draft && S.draft.join() !== S.order.join(); }
+function minsDirty() { return Object.keys(S.draftMins).length; }
+function isDirty() { return orderDirty() || minsDirty() > 0; }
 function renderOrder() {
   const list = S.draft || S.order, q = norm($("#oq").value).trim();
   $("#olist").innerHTML = list.map((id, i) => {
     const it = BY[id];
     const hit = q && norm(`${it.material} ${it.codigo} ${it.proveedor}`).includes(q);
-    return `<li class="orow${hit ? " hit" : ""}" data-id="${id}">
+    const pending = Object.prototype.hasOwnProperty.call(S.draftMins, id);
+    const val = pending ? S.draftMins[id] : minOf(id);
+    const m = S.mins[id];
+    return `<li class="orow${hit ? " hit" : ""}${pending ? " changed" : ""}" data-id="${id}">
       <button class="handle" aria-label="Arrastrar para mover"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg></button>
       <input class="pos" type="number" inputmode="numeric" id="pos-${id}" value="${i + 1}" min="1" max="${list.length}" aria-label="Posición">
       <div class="othumb"><img src="${it.img}" alt="" loading="lazy"></div>
-      <div class="oname">${esc(it.material)}<small>${esc(it.proveedor)}${it.codigo ? " · " + esc(it.codigo) : ""}</small></div>
+      <div class="oname">${esc(it.material)}<small>${esc(it.proveedor)}${it.codigo ? " · " + esc(it.codigo) : ""}</small>
+        ${m && m.by ? `<small class="mchg">Mínimo cambiado por ${esc(m.by)} el ${fmtDate(m.at)}${m.prev != null ? ` (antes ${m.prev})` : ""}</small>` : ""}</div>
+      <label class="omin"><span>Mín.</span><input type="number" inputmode="numeric" min="0" step="1" id="min-${id}" value="${val ?? ""}" placeholder="—" aria-label="Mínimo de ${esc(it.material)}"></label>
       <div class="arrows"><button data-mv="-1" aria-label="Subir">▲</button><button data-mv="1" aria-label="Bajar">▼</button></div>
     </li>`;
   }).join("");
@@ -357,6 +371,10 @@ function renderOrder() {
 }
 function renderSaveBar() {
   $("#bar-config").hidden = !(S.view === "config" && isDirty());
+  const parts = [];
+  if (orderDirty()) parts.push("orden");
+  const n = minsDirty(); if (n) parts.push(n === 1 ? "1 mínimo" : n + " mínimos");
+  $("#dirty-txt").textContent = "Cambios sin guardar: " + parts.join(" y ");
   $("#who-save").innerHTML = COUNTERS.map(n => `<button class="chip" data-who="${n}" aria-pressed="${S.draftBy === n}">${n}</button>`).join("");
   $("#save-order").disabled = !S.draftBy;
 }
@@ -372,6 +390,17 @@ $("#olist").addEventListener("click", e => {
   moveTo(id, d.indexOf(id) + Number(b.dataset.mv));
   document.querySelector(`.orow[data-id="${id}"] [data-mv="${b.dataset.mv}"]`)?.focus({ preventScroll: true });
 });
+$("#olist").addEventListener("input", e => {
+  if (!e.target.matches(".omin input")) return;
+  const row = e.target.closest(".orow"), id = row.dataset.id;
+  const raw = e.target.value.trim();
+  const v = raw === "" ? null : Math.max(0, Math.floor(Number(raw)));
+  if (raw !== "" && !isFinite(v)) return;
+  if (v === minOf(id)) delete S.draftMins[id]; else S.draftMins[id] = v;
+  row.classList.toggle("changed", Object.prototype.hasOwnProperty.call(S.draftMins, id));
+  renderSaveBar();
+});
+$("#olist").addEventListener("focusin", e => { if (e.target.matches(".omin input, .pos")) e.target.select(); });
 $("#olist").addEventListener("change", e => {
   if (!e.target.matches(".pos")) return;
   const id = e.target.closest(".orow").dataset.id; const n = parseInt(e.target.value, 10);
@@ -379,14 +408,18 @@ $("#olist").addEventListener("change", e => {
 });
 $("#oq").addEventListener("input", () => { renderOrder(); document.querySelector(".orow.hit")?.scrollIntoView({ block: "center" }); });
 $("#reset-order").addEventListener("click", () => { S.draft = PDF_ORDER.slice(); renderOrder(); });
-$("#discard").addEventListener("click", () => { S.draft = null; S.draftBy = null; renderOrder(); });
+$("#discard").addEventListener("click", () => { S.draft = null; S.draftMins = {}; S.draftBy = null; renderOrder(); });
 $("#who-save").addEventListener("click", e => { const b = e.target.closest("[data-who]"); if (b) { S.draftBy = b.dataset.who; renderSaveBar(); } });
 $("#save-order").addEventListener("click", async () => {
-  if (!S.draftBy || !S.draft) return;
+  if (!S.draftBy || !isDirty()) return;
+  const mins = {};
+  for (const [id, v] of Object.entries(S.draftMins)) mins[id] = { min: v, prev: minOf(id) ?? null, material: BY[id].material };
   $("#save-msg").textContent = "Guardando…"; $("#save-order").disabled = true;
   try {
-    const r = await api("saveOrder", { order: S.draft, savedBy: S.draftBy });
-    S.order = normalizeOrder(r.orden.order); S.orderMeta = r.orden; S.draft = null; S.draftBy = null;
+    const r = await api("saveConfig", { order: orderDirty() ? S.draft : null, mins, savedBy: S.draftBy });
+    if (r.orden && r.orden.order) { S.order = normalizeOrder(r.orden.order); S.orderMeta = r.orden; }
+    S.mins = r.minimos || S.mins;
+    S.draft = null; S.draftMins = {}; S.draftBy = null;
     $("#save-msg").textContent = "";
     renderOrderMeta(); renderOrder(); renderCards();
   } catch (e) { $("#save-msg").textContent = "No se pudo guardar: " + e.message; $("#save-order").disabled = false; }

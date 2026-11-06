@@ -20,4 +20,5 @@ App web (móvil y ordenador) para el conteo de stock de material de climatizaci�
 - **Cambiar la clave**: en Apps Script, edita `cambiarClave()` con la nueva clave, guarda y ejecútala.
 - **Cambiar el código del servidor**: tras guardar, *Implementar → Gestionar implementaciones → Editar → Nueva versión* (así la URL no cambia).
 - **Añadir o cambiar materiales**: edita `items.js` (mínimo, material, proveedor, código, nota; la foto va dentro del propio archivo en base64).
+- **Mínimos**: se cambian en la app (Configuración). Cada cambio queda en la pestaña «Cambios de mínimos» de la hoja.
 - **Encargados**: `COUNTERS` al principio de `app.js` (ahora Alonso y Tanit).
