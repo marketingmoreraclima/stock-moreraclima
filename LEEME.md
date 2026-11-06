@@ -2,7 +2,7 @@
 
 App web (móvil y ordenador) para el conteo de stock de material de climatización.
 
-- **Web**: GitHub Pages (esta carpeta: `index.html`, `app.js`, `items.js`, `config.js`, `img/`).
+- **Web**: GitHub Pages (esta carpeta: `index.html`, `app.js`, `items.js`, `config.js`).
 - **Servidor**: Google Apps Script (`apps-script/Codigo.gs`), proyecto «Stock MoreraClima servidor» en la cuenta marketingmoreraclima@gmail.com.
 - **Datos**: hoja «App stock moreraclima» (pestañas *Historial* y *Pedidos*).
 - **Correo**: cada pedido se envía a holamoreraclima@gmail.com desde la cuenta del servidor.
@@ -19,5 +19,5 @@ App web (móvil y ordenador) para el conteo de stock de material de climatizaci�
 ## Cambios habituales
 - **Cambiar la clave**: en Apps Script, edita `cambiarClave()` con la nueva clave, guarda y ejecútala.
 - **Cambiar el código del servidor**: tras guardar, *Implementar → Gestionar implementaciones → Editar → Nueva versión* (así la URL no cambia).
-- **Añadir o cambiar materiales**: edita `items.js` (mínimo, material, proveedor, código, nota e imagen en `img/`).
+- **Añadir o cambiar materiales**: edita `items.js` (mínimo, material, proveedor, código, nota; la foto va dentro del propio archivo en base64).
 - **Encargados**: `COUNTERS` al principio de `app.js` (ahora Alonso y Tanit).
