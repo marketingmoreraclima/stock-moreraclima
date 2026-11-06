@@ -1,0 +1,23 @@
+# Stock MoreraClima
+
+App web (móvil y ordenador) para el conteo de stock de material de climatización.
+
+- **Web**: GitHub Pages (esta carpeta: `index.html`, `app.js`, `items.js`, `config.js`, `img/`).
+- **Servidor**: Google Apps Script (`apps-script/Codigo.gs`), proyecto «Stock MoreraClima servidor» en la cuenta marketingmoreraclima@gmail.com.
+- **Datos**: hoja «App stock moreraclima» (pestañas *Historial* y *Pedidos*).
+- **Correo**: cada pedido se envía a holamoreraclima@gmail.com desde la cuenta del servidor.
+- **Acceso**: con clave. La clave se comprueba en el servidor, no está en el código de esta web.
+
+## 1. Servidor (una vez)
+1. En el editor de Apps Script, elige la función `instalar` y pulsa **Ejecutar**. Acepta los permisos (Hojas de cálculo y Gmail).
+2. **Implementar → Nueva implementación → Aplicación web**. Ejecutar como: *Yo*. Quién tiene acceso: *Cualquier usuario*. Copia la URL que termina en `/exec`.
+
+## 2. Web
+1. Pega esa URL en `config.js` (`window.STOCK_API = "…/exec";`).
+2. Sube la carpeta al repositorio y activa **Settings → Pages → Deploy from branch → main / (root)**.
+
+## Cambios habituales
+- **Cambiar la clave**: en Apps Script, edita `cambiarClave()` con la nueva clave, guarda y ejecútala.
+- **Cambiar el código del servidor**: tras guardar, *Implementar → Gestionar implementaciones → Editar → Nueva versión* (así la URL no cambia).
+- **Añadir o cambiar materiales**: edita `items.js` (mínimo, material, proveedor, código, nota e imagen en `img/`).
+- **Encargados**: `COUNTERS` al principio de `app.js` (ahora Alonso y Tanit).
