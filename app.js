@@ -3,7 +3,7 @@ const BY = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 const PDF_ORDER = ITEMS.map(i => i.id);
 const COUNTERS = ["Alonso", "Tanit"];
 const BUYER = "José María";
-const EMAIL = "holamoreraclima@gmail.com";
+const EMAIL = "marketingmoreraclima@gmail.com, pardomoreraclima@gmail.com"; // en pruebas; luego: holamoreraclima@gmail.com
 const API = ((window.STOCK_API || "").includes("PEGA_AQUI") ? "" : (window.STOCK_API || "").trim());
 
 const S = {
@@ -244,12 +244,7 @@ function makeWorkbook(rec) {
     const s = XLSX.utils.aoa_to_sheet([[`Pedido ${p}`], [`Conteo: ${fmtDate(rec.fecha)} · ${rec.encargado}`], [], cols, ...g[p].map(toRow)]);
     s["!cols"] = widths; XLSX.utils.book_append_sheet(wb, s, p.replace(/[\\/?*\[\]:]/g, "").slice(0, 31));
   });
-  if (rec.sinContar.length) {
-    const s = XLSX.utils.aoa_to_sheet([["Materiales que no se contaron en este conteo"], [], cols.slice(0, 7), ...rec.sinContar.map(l => toRow(l).slice(0, 7))]);
-    s["!cols"] = widths; XLSX.utils.book_append_sheet(wb, s, "Sin contar");
-  }
-  const s = XLSX.utils.aoa_to_sheet([["Conteo completo"], [], cols.slice(0, 7), ...rec.todas.map(l => toRow(l).slice(0, 7))]);
-  s["!cols"] = widths; XLSX.utils.book_append_sheet(wb, s, "Conteo completo");
+  // Solo se incluyen los materiales que hay que comprar.
   return wb;
 }
 function currentRecord() {
@@ -266,7 +261,7 @@ function renderRevision() {
   const g = groupByProv(rec.pedir);
   let h = "";
   if (!rec.encargado) h += `<div class="notice warn">Elige quién hace el conteo (${COUNTERS.join(" o ")}) antes de enviarlo.</div>`;
-  if (rec.sinContar.length) h += `<div class="notice warn"><b>${rec.sinContar.length} materiales sin contar.</b> No entran en el pedido; salen en una pestaña aparte del Excel. <button class="btn link" id="see-pend">Ver cuáles</button></div>`;
+  if (rec.sinContar.length) h += `<div class="notice warn"><b>${rec.sinContar.length} materiales sin contar.</b> No entran en el pedido ni en el Excel. <button class="btn link" id="see-pend">Ver cuáles</button></div>`;
   if (!rec.pedir.length) h += `<div class="notice good">No hay nada por debajo del mínimo. Puedes enviar igualmente el conteo para que quede registrado.</div>`;
   Object.keys(g).sort().forEach(p => {
     h += `<h3 class="prov-h">${esc(p)} <span class="small muted">· ${g[p].length} líneas</span></h3>
@@ -288,12 +283,12 @@ function renderRevision() {
 }
 function emailHTML(rec) {
   const g = groupByProv(rec.pedir);
-  let t = `<p>Hola ${BUYER},</p><p>${esc(rec.encargado)} ha terminado el conteo de stock (${fmtDate(rec.fecha)}). Hay <b>${rec.pedir.length}</b> materiales por debajo del mínimo. Va el Excel adjunto con una pestaña por proveedor.</p>`;
+  let t = `<p>Hola ${BUYER},</p><p>${esc(rec.encargado)} ha terminado el conteo de stock (${fmtDate(rec.fecha)}). Hay <b>${rec.pedir.length}</b> materiales por debajo del mínimo. Va el Excel adjunto, solo con lo que hay que comprar (una pestaña por proveedor).</p>`;
   Object.keys(g).sort().forEach(p => {
     t += `<h3 style="margin:16px 0 6px">${esc(p)}</h3><table cellpadding="6" style="border-collapse:collapse;font-size:14px"><tr style="background:#eef1f3"><th align="left">Código</th><th align="left">Material</th><th align="right">Pedir</th></tr>` +
       g[p].map(l => `<tr style="border-top:1px solid #ddd"><td>${esc(l.codigo || "—")}</td><td>${esc(l.material)}${l.nota ? `<br><small style="color:#c8321f">${esc(l.nota)}</small>` : ""}</td><td align="right"><b>${l.pedir}</b></td></tr>`).join("") + `</table>`;
   });
-  if (rec.sinContar.length) t += `<p style="color:#c8321f">Aviso: ${rec.sinContar.length} materiales no se contaron (pestaña «Sin contar»).</p>`;
+  if (rec.sinContar.length) t += `<p style="color:#c8321f">Aviso: ${rec.sinContar.length} materiales no se contaron y no están en el pedido.</p>`;
   return t;
 }
 function emailText(rec) {
@@ -467,14 +462,74 @@ async function loadHist() {
 }
 $("#hist").addEventListener("click", e => { const b = e.target.closest("[data-h]"); if (b) downloadRec(S.hist[b.dataset.h], $("#hmsg-" + b.dataset.h)); });
 
+/* ---------- compras (José María) ---------- */
+S.compras = []; S.cfilter = "Pendiente";
+const hoyISO = () => { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+const fmtDia = s => { if (!s) return ""; const [y, m, d] = s.split("-"); return `${d}/${m}/${y}`; };
+async function loadCompras() {
+  $("#compras").innerHTML = `<div class="panel empty">Cargando…</div>`;
+  try { S.compras = (await api("compras")).compras || []; renderCompras(); }
+  catch (e) { $("#compras").innerHTML = `<div class="panel empty">No se pudieron cargar las compras.</div>`; }
+}
+function renderCompras() {
+  const lista = S.compras.filter(c => c.estado === S.cfilter);
+  const pend = S.compras.filter(c => c.estado === "Pendiente").length;
+  $("#cfilter").children[0].textContent = `Por pedir (${pend})`;
+  if (!lista.length) {
+    $("#compras").innerHTML = `<div class="panel empty">${S.cfilter === "Pendiente" ? "No hay nada pendiente de pedir. Cuando Alonso o Tanit envíen un conteo, aquí aparecerá lo que hay que comprar." : "Todavía no hay nada marcado como pedido."}</div>`;
+    return;
+  }
+  const g = {}; lista.forEach(c => (g[c.proveedor] = g[c.proveedor] || []).push(c));
+  $("#compras").innerHTML = Object.keys(g).sort().map(p => `<h3 class="prov-h">${esc(p)} <span class="small muted">· ${g[p].length} líneas</span></h3>` +
+    g[p].map(c => {
+      const it = BY[c.item]; const done = c.estado === "Pedido";
+      return `<article class="cline${done ? " done" : ""}" data-l="${esc(c.linea)}">
+        <div class="thumb">${it ? `<img src="${it.img}" alt="" loading="lazy">` : ""}</div>
+        <div class="info"><div class="mat">${esc(c.material)}</div>
+          <div class="meta"><span class="code">${esc(c.codigo || "sin código")}</span><span>Mín. ${c.min} · había ${c.stock}</span></div>
+          <div class="small muted">Conteo de ${esc(c.encargado || "—")} el ${fmtDate(c.fecha)}</div>
+          ${c.nota ? `<div class="nota">${esc(c.nota)}</div>` : ""}</div>
+        <div class="cform">
+          <div class="sug">Sugerido <b>${c.sugerido}</b></div>
+          ${done ? `<div><b>Pedido: ${c.cantidad}</b> uds el ${fmtDia(c.fechaCompra)}<div class="small muted">Marcado por ${esc(c.por)}</div></div>
+            <button class="btn" data-undo style="margin-left:auto">Deshacer</button>`
+          : `<label>Cantidad pedida<input type="number" inputmode="numeric" min="0" step="1" id="cq-${esc(c.linea)}" value="${c.cantidad}"></label>
+            <label>Fecha de compra<input type="date" id="cd-${esc(c.linea)}" value="${hoyISO()}"></label>
+            <button class="btn ok" data-buy style="margin-left:auto">✓ Marcar como pedido</button>`}
+          <div class="small" data-msg style="flex-basis:100%"></div>
+        </div>
+      </article>`;
+    }).join("")).join("");
+}
+$("#cfilter").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  S.cfilter = b.dataset.f; [...$("#cfilter").children].forEach(x => x.setAttribute("aria-pressed", x === b)); renderCompras();
+});
+$("#compras").addEventListener("click", async e => {
+  const b = e.target.closest("[data-buy],[data-undo]"); if (!b) return;
+  const card = b.closest(".cline"), linea = card.dataset.l, msg = card.querySelector("[data-msg]");
+  const payload = { linea, pedido: b.hasAttribute("data-buy") };
+  if (payload.pedido) {
+    const q = card.querySelector('input[type=number]').value, d = card.querySelector('input[type=date]').value;
+    if (q === "" || Number(q) < 0) { msg.innerHTML = `<span class="nota">Escribe la cantidad pedida.</span>`; return; }
+    payload.cantidad = Number(q); payload.fechaCompra = d || hoyISO();
+  }
+  b.disabled = true; msg.textContent = "Guardando…";
+  try {
+    const r = await api("marcarCompra", payload);
+    S.compras = S.compras.map(c => c.linea === linea ? r.linea : c); renderCompras();
+  } catch (err) { b.disabled = false; msg.innerHTML = `<span class="nota">No se pudo guardar: ${esc(err.message)}</span>`; }
+});
+
 /* ---------- navegación ---------- */
 function go(v) {
   S.view = v;
-  ["conteo", "revision", "config", "historial"].forEach(x => $("#v-" + x).hidden = x !== v);
+  ["conteo", "revision", "config", "compras", "historial"].forEach(x => $("#v-" + x).hidden = x !== v);
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.view === v || (v === "revision" && t.dataset.view === "conteo")));
   $("#bar-conteo").hidden = v !== "conteo";
   if (v === "config") renderOrder(); else $("#bar-config").hidden = true;
   if (v === "historial") loadHist();
+  if (v === "compras") loadCompras();
   if (v === "conteo") renderCards();
   scrollTo(0, 0);
 }

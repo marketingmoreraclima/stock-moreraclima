@@ -140,6 +140,16 @@ td.big{font-weight:700;color:var(--accent)}
 .orow.changed{border-color:var(--accent);background:var(--accent-soft)}
 .orow.changed .omin input{border-color:var(--accent)}
 .mchg{color:var(--ok)!important;margin-top:2px}
+.cline{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:64px 1fr;gap:10px 12px;min-width:0}
+.cline.done{border-left-color:var(--ok)}
+.cline .thumb{width:64px;height:64px}
+.cform{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;border-top:1px dashed var(--line);padding-top:10px}
+.cform label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.cform input{border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px;background:var(--surface);color:var(--fg);min-height:44px}
+.cform input[type=number]{width:90px;font-weight:700;text-align:center}
+.sug{font-family:var(--font-display);font-size:15px;color:var(--muted)}
+.sug b{font-size:22px;color:var(--accent)}
+@media (max-width:440px){.tab{padding:10px 7px;font-size:14.5px}}
 .savebar .wrap{flex-direction:column;align-items:stretch;gap:8px}
 .hidden-on-small{display:inline}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -177,6 +187,7 @@ td.big{font-weight:700;color:var(--accent)}
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-view="conteo" aria-selected="true">Conteo</button>
       <button class="tab" role="tab" data-view="config" aria-selected="false">Configuración</button>
+      <button class="tab" role="tab" data-view="compras" aria-selected="false">Compras</button>
       <button class="tab" role="tab" data-view="historial" aria-selected="false">Historial</button>
     </nav>
   </div>
@@ -232,6 +243,21 @@ td.big{font-weight:700;color:var(--accent)}
       </div>
     </div>
     <ol class="olist" id="olist"></ol>
+  </section>
+
+  <!-- COMPRAS -->
+  <section class="view stack" id="v-compras" hidden>
+    <div class="panel stack">
+      <div>
+        <h2 class="prov-h" style="margin:0">Compras · José María</h2>
+        <p class="small muted" style="margin:4px 0 0">Lo que salió en el último conteo enviado. Ajusta la cantidad si pides de más o de menos, pon la fecha de compra y márcalo como pedido.</p>
+      </div>
+      <div class="seg" id="cfilter" role="group" aria-label="Filtrar compras">
+        <button data-f="Pendiente" aria-pressed="true">Por pedir</button>
+        <button data-f="Pedido" aria-pressed="false">Ya pedidos</button>
+      </div>
+    </div>
+    <div id="compras" class="stack"></div>
   </section>
 
   <!-- HISTORIAL -->
