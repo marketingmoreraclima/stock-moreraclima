@@ -3,7 +3,7 @@ const BY = Object.fromEntries(ITEMS.map(i => [i.id, i]));
 const PDF_ORDER = ITEMS.map(i => i.id);
 const COUNTERS = ["Alonso", "Tanit"];
 const BUYER = "José María";
-const EMAIL = "marketingmoreraclima@gmail.com, pardomoreraclima@gmail.com"; // en pruebas; luego: holamoreraclima@gmail.com
+const EMAIL = "marketingmoreraclima@gmail.com, holamoreraclima@gmail.com";
 const API = ((window.STOCK_API || "").includes("PEGA_AQUI") ? "" : (window.STOCK_API || "").trim());
 
 const S = {
